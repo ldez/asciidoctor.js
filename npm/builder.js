@@ -139,13 +139,7 @@ Builder.prototype.release = function (releaseVersion) {
 
   async.series([
     function (callback) { builder.prepareRelease(releaseVersion, callback); },
-    function (callback) { builder.build(callback); },
-    function (callback) { builder.runTest(callback); },
-    function (callback) { builder.copyToDist(callback); },
-    function (callback) { builder.commit(releaseVersion, callback); },
-    function (callback) { builder.publish(callback); },
-    function (callback) { builder.prepareNextIteration(callback); },
-    function (callback) { builder.completeRelease(releaseVersion, callback); }
+    function (callback) { builder.completeRelease(callback); }
   ], function () {
     log.success('Done in ' + process.hrtime(start)[0] + 's');
   });
@@ -170,22 +164,8 @@ Builder.prototype.prepareRelease = function (releaseVersion, callback) {
   if (process.env.DRY_RUN) {
     log.warn('Dry run! To perform the release, run the command again without DRY_RUN environment variable');
   } else {
-    bfs.updateFileSync('package.json', /"version": "(.*?)"/g, '"version": "' + releaseVersion + '"');
+    this.execSync('npm version ' + releaseVersion);
   }
-  callback();
-};
-
-Builder.prototype.commit = function (releaseVersion, callback) {
-  this.execSync('git add -A .');
-  this.execSync('git commit -m "Release ' + releaseVersion + '"');
-  this.execSync('git tag v' + releaseVersion);
-  callback();
-};
-
-Builder.prototype.prepareNextIteration = function (callback) {
-  this.removeDistDirSync();
-  this.execSync('git add -A .');
-  this.execSync('git commit -m "Prepare for next development iteration"');
   callback();
 };
 
@@ -194,20 +174,10 @@ Builder.prototype.runTest = function (callback) {
   callback();
 };
 
-Builder.prototype.publish = function (callback) {
-  if (process.env.SKIP_PUBLISH) {
-    log.info('SKIP_PUBLISH environment variable is defined, skipping "publish" task');
-    callback();
-    return;
-  }
-  this.execSync('npm publish');
-  callback();
-};
-
-Builder.prototype.completeRelease = function (releaseVersion, callback) {
+Builder.prototype.completeRelease = function (callback) {
   log.info('');
   log.info('To complete the release, you need to:');
-  log.info('[ ] push changes upstream: `git push origin master && git push origin v' + releaseVersion + '`');
+  log.info('[ ] push changes upstream: `git push origin master && git push origin --tags');
   log.info('[ ] publish a release page on GitHub: https://github.com/asciidoctor/asciidoctor.js/releases/new');
   log.info('[ ] create an issue here: https://github.com/webjars/asciidoctor.js to update Webjars');
   callback();
