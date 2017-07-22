@@ -1,3 +1,4 @@
+"use strict";
 module.exports = Builder;
 
 var async = require('async');
@@ -139,7 +140,11 @@ Builder.prototype.release = function (releaseVersion) {
 
   async.series([
     function (callback) { builder.prepareRelease(releaseVersion, callback); },
-    function (callback) { builder.completeRelease(callback); }
+    function (callback) {
+      const releasePushed = builder.pushRelease(callback);
+      callback();
+    },
+    function (callback) { builder.completeRelease(releasePushed, callback); }
   ], function () {
     log.success('Done in ' + process.hrtime(start)[0] + 's');
   });
@@ -174,10 +179,32 @@ Builder.prototype.runTest = function (callback) {
   callback();
 };
 
-Builder.prototype.completeRelease = function (callback) {
+Builder.prototype.pushRelease = function () {
+  var result = child_process.execSync('git remote -v').toString('utf8')
+  var lines = result.split(/\r?\n/);
+  let remoteName;
+  for (let line of lines) {
+    if (line.includes('(push)') && line.includes('asciidoctor/asciidoctor.js.git')) {
+      remoteName = line.split('\t')[0];
+      break;
+    }
+  }
+  if (typeof remoteName === 'undefined') {
+    log.warn('Unable to find the remote name of the original repository asciidoctor/asciidoctor.js');
+    return false;
+  } else {
+    this.execSync('git push ' + remoteName + ' master');
+    this.execSync('git push ' + remoteName + ' --tags');
+    return true;
+  }
+};
+
+Builder.prototype.completeRelease = function (releasePushed, callback) {
   log.info('');
   log.info('To complete the release, you need to:');
-  log.info('[ ] push changes upstream: `git push origin master && git push origin --tags');
+  if (!releasePushed) {
+    log.info('[ ] push changes upstream: `git push origin master && git push origin --tags');
+  }
   log.info('[ ] publish a release page on GitHub: https://github.com/asciidoctor/asciidoctor.js/releases/new');
   log.info('[ ] create an issue here: https://github.com/webjars/asciidoctor.js to update Webjars');
   callback();
