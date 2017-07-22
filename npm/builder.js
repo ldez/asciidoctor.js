@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 module.exports = Builder;
 
 var async = require('async');
@@ -141,6 +141,7 @@ Builder.prototype.release = function (releaseVersion) {
   async.series([
     function (callback) { builder.prepareRelease(releaseVersion, callback); },
     function (callback) {
+      /* eslint-disable no-unused-vars */
       const releasePushed = builder.pushRelease(callback);
       callback();
     },
@@ -184,7 +185,7 @@ Builder.prototype.pushRelease = function () {
     .split(/\r?\n/)
     .filter(line => line.includes('(push)') && line.includes('asciidoctor/asciidoctor.js.git'))
     .map(line => line.split('\t')[0])
-    .reduce((a, b) => a + b, '')
+    .reduce((a, b) => a + b, '');
 
   if (remoteName) {
     this.execSync('git push ' + remoteName + ' master');
