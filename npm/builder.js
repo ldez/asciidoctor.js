@@ -180,22 +180,19 @@ Builder.prototype.runTest = function (callback) {
 };
 
 Builder.prototype.pushRelease = function () {
-  var result = child_process.execSync('git remote -v').toString('utf8')
-  var lines = result.split(/\r?\n/);
-  let remoteName;
-  for (let line of lines) {
-    if (line.includes('(push)') && line.includes('asciidoctor/asciidoctor.js.git')) {
-      remoteName = line.split('\t')[0];
-      break;
-    }
-  }
-  if (typeof remoteName === 'undefined') {
-    log.warn('Unable to find the remote name of the original repository asciidoctor/asciidoctor.js');
-    return false;
-  } else {
+  const remoteName = child_process.execSync('git remote -v').toString('utf8')
+    .split(/\r?\n/)
+    .filter(line => line.includes('(push)') && line.includes('asciidoctor/asciidoctor.js.git'))
+    .map(line => line.split('\t')[0])
+    .reduce((a, b) => a + b, '')
+
+  if (remoteName) {
     this.execSync('git push ' + remoteName + ' master');
     this.execSync('git push ' + remoteName + ' --tags');
     return true;
+  } else {
+    log.warn('Unable to find the remote name of the original repository asciidoctor/asciidoctor.js');
+    return false;
   }
 };
 
@@ -232,6 +229,7 @@ Builder.prototype.execSync = function (command) {
   if (!process.env.DRY_RUN) {
     stdout = child_process.execSync(command);
     process.stdout.write(stdout);
+    return stdout;
   }
 };
 
